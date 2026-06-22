@@ -1,0 +1,191 @@
+مخططات النظام:
+System Architecture Diagram
+Hardware Architecture
+Attendance System Flowchart
+Exam Processing Flow
+AI Analysis Flow
+Database ER Diagram
+Platform Architecture
+المكونات المادية:
+ESP32 Development board (Microcontroller)
+ESP32 CAM
+ESP32 Antenna
+TFT Display
+RC522 RFID Card Reader Module
+Breadboard
+Lithium battery 18650
+TP4056 Charge Circuit
+الاكواد المستخدمة في الهاردوير:
+أولا: الكود الخاص بـ ESP32 CAM
+ثانيا: الكود الخاص بـ ESP32 Development board
+شرح كود ESP32-CAM 
+هدف الكود:
+تشغيل الكاميرا والاتصال بالـ WiFi وإرسال صورة عند طلبها من السيرفر.
+المكتبات
+1. #include "esp_camera.h"
+2. #include <WiFi.h>
+3. #include <WebServer.h>
+الشرح:
+esp_camera.h
+مكتبة تشغيل الكاميرا في ESP32-CAM.
+WiFi.h
+لربط الجهاز بالإنترنت.
+WebServer.h
+لإنشاء سيرفر داخل ESP32 لاستقبال الطلبات.
+بيانات الشبكة
+1. const char* ssid = "YOUR_WIFI";
+2. const char* password = "YOUR_PASSWORD";
+الشرح:
+هذه المتغيرات تحتوي:
+اسم شبكة WiFi 
+كلمة المرور
+حتى يستطيع الجهاز الاتصال بالإنترنت.
+إنشاء Web Server 
+WebServer server(80);
+الشرح:
+إنشاء Web Server يعمل على Port 80
+حتى يمكن الوصول إليه من المتصفح.
+مثال:
+http://esp32-ip/capture
+تعريف أرجل الكاميرا
+1. #define PWDN_GPIO_NUM 32
+2. #define RESET_GPIO_NUM -1
+الشرح:
+هذه التعريفات تحدد الأرجل المستخدمة لتوصيل الكاميرا مع ESP32
+وهي تختلف حسب نوع لوحة ESP32-CAM.
+دالة التقاط الصورة
+1. void handleCapture()
+الشرح:
+هذه الدالة تقوم بـ:
+التقاط صورة من الكاميرا
+1. camera_fb_t * fb = esp_camera_fb_get();
+إرسال الصورة إلى المتصفح
+1. server.sendHeader("Content-Type", "image/jpeg");
+تحرير الذاكرة بعد الانتهاء
+1. esp_camera_fb_return(fb);
+دالة إعداد الكاميرا
+1. void startCamera()
+الشرح:
+هذه الدالة تقوم بتحديد إعدادات الكاميرا مثل:
+حجم الصورة
+1. config.frame_size = FRAMESIZE_VGA;
+جودة الصورة
+1. config.jpeg_quality = 10;
+ثم تشغيل الكاميرا:
+1. esp_camera_init(&config);
+دالة    setup  
+1. void setup()
+الشرح:
+هذه الدالة تنفذ مرة واحدة عند تشغيل الجهاز.
+الخطوات:
+تشغيل Serial
+1. Serial.begin(115200);
+لإظهار الرسائل في Serial Monitor.
+تشغيل الكاميرا
+1. startCamera();
+الاتصال بالـ   Wi-Fi  
+1. WiFi.begin(ssid, password);
+والانتظار حتى يتم الاتصال.
+إنشاء رابط التقاط الصورة
+1. server.on("/capture", handleCapture);
+عند زيارة الرابط:
+/capture
+سيتم التقاط صورة.
+تشغيل السيرفر
+1. server.begin();
+دالة   loop
+1. void loop()
+الشرح:
+1. server.handleClient();
+هذه الدالة تجعل السيرفر يستقبل الطلبات من المتصفح.
+شرح كود  ESP32 + RFID
+هدف الكود:
+قراءة كارت الطالب وإرسال رقم الكارت إلى السيرفر لتسجيل الحضور.
+المكتبات
+1. #include <SPI.h>
+2. #include <MFRC522.h>
+3. #include <WiFi.h>
+4. #include <HTTPClient.h>
+الشرح:
+SPI.h
+للتواصل مع RFID.
+MFRC522.h
+مكتبة تشغيل قارئ الكروت.
+WiFi.h
+الاتصال بالإنترنت.
+HTTPClient.h
+لإرسال طلبات HTTP إلى السيرفر.
+تعريف الأرجل
+1. #define SS_PIN 5
+2. #define RST_PIN 22
+الشرح:
+تحديد الأرجل المستخدمة لتوصيل:
+SS
+Reset
+مع RFID.
+إنشاء كائن  RFID
+1. MFRC522 rfid(SS_PIN, RST_PIN);
+الشرح:
+إنشاء كائن للتحكم في قارئ الكروت.
+عنوان السيرفر
+1. const char* serverName = "http://yourserver.com/attendance";
+الشرح:
+العنوان الذي سيستقبل بيانات الحضور.
+setup
+تشغيل:
+Serial
+Serial.begin(115200);
+SPI
+SPI.begin();
+لتشغيل بروتوكول الاتصال مع RFID.
+تشغيل RFID
+1. rfid.PCD_Init();
+الاتصال بالإنترنت
+1. WiFi.begin(ssid, password);
+قراءة الكارت
+1. if (!rfid.PICC_IsNewCardPresent())
+الشرح:
+يتأكد إذا كان هناك كارت جديد.
+1. rfid.PICC_ReadCardSerial()
+الشرح:
+قراءة رقم الكارت.
+استخراج ID 
+1. String cardID = "";
+ثم:
+1. cardID += String(rfid.uid.uidByte[i], HEX);
+الشرح:
+تحويل رقم الكارت إلى نص.
+إرسال البيانات للسيرفر
+1. HTTPClient http;
+إنشاء طلب HTTP.
+1. http.begin(serverName);
+تحديد السيرفر.
+1. http.addHeader("Content-Type", "application/json");
+إرسال البيانات بصيغة JSON.
+1. http.POST(body);
+إرسال الطلب.
+شرح كود   TFT Display
+هدف الكود:
+عرض رسالة على الشاشة.
+المكتبة
+1. #include <TFT_eSPI.h>
+الشرح:
+مكتبة للتحكم في شاشات TFT.
+إنشاء كائن الشاشة
+1. TFT_eSPI tft = TFT_eSPI();
+تشغيل الشاشة
+1. tft.init();
+تهيئة الشاشة.
+تدوير الشاشة
+1. tft.setRotation(1);
+لتغيير اتجاه العرض.
+تنظيف الشاشة
+1. tft.fillScreen(TFT_BLACK);
+ملء الشاشة باللون الأسود.
+تحديد لون النص
+1. tft.setTextColor(TFT_WHITE);
+عرض النص
+1. tft.drawString("Attendance System", 20, 40, 2);
+الشرح:
+عرض النص على الشاشة.
+الصفحات الرئيسية للنظام:

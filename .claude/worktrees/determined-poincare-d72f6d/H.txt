@@ -1,0 +1,62 @@
+#### Summary of All Changes
+  1. Database Layer (Prisma Schema + Seed)
+
+    * prisma/schema.prisma - Modified:
+
+      * Added ADVISOR to Role enum
+
+      * Added MeetingStatus enum (SCHEDULED, COMPLETED, CANCELLED)
+
+      * Added 6 new relation fields to User model (sentNotifications, receivedNotifications, advisorRecommendationsMade, advisorRecommendationsReceived,
+
+        advisorMeetingsAsAdvisor, advisorMeetingsAsStudent)
+
+      * Added 3 new models: AdvisorRecommendation, SystemNotification, AdvisorMeeting with proper relations and indexes
+
+    * prisma/seed.ts - Created: Seeds 3 courses (CS-EXPERT/نظم خبيره, AI-EDU/تطبيقات الذكاء الاصطناعي في التعليم, NET-SEC/أمن الشبكات) using upsert
+
+  2. Frontend Dashboards
+
+    * components/dashboard/student/dashboard-client.tsx - Enhanced: Added grades table, notifications panel, advisor recommendations section, academic
+
+      warnings banner. Uses brand colors (#F58220 orange, #002060 dark blue)
+
+    * app/actions/student/get-dashboard.ts - Enhanced: Now fetches notifications, advisor recommendations, and exam grades alongside existing data
+
+    * app/(dashboard)/advisor/page.tsx - Created: New advisor dashboard page
+
+    * components/dashboard/advisor/client-page.tsx - Created: Full advisor dashboard with student list (attendance/grades/assignments rates), recommendation
+
+      modal with warning toggle, meeting scheduler, meeting status management
+
+    * components/dashboard/layout-client.tsx - Modified: Added ADVISOR role type and advisor sidebar menu
+  3. Messaging & Notifications
+    * app/api/notifications/route.ts - Created: REST API with GET (fetch user notifications), POST (send notification, teachers/advisors/admins only), PATCH
+      (mark as read)
+  4. Advisor Actions
+    * app/actions/advisor/get-dashboard.ts - Created: Fetches all students with computed attendance/score/assignment rates, recommendations, meetings, stats
+
+    * app/actions/advisor/actions.ts - Created: saveRecommendationAction (saves + auto-notifies student), scheduleMeetingAction (creates + notifies),
+
+      updateMeetingStatusAction
+  5. Hardware Files
+    * hardware/esp32_cam_mb.ino - Created: Full AI-Thinker ESP32-CAM code with all 16 pin definitions, VGA JPEG capture, /capture endpoint on port 80, WiFi
+      placeholders
+    * hardware/esp32_rfid_tft.ino - Created: Full ESP32 + RC522 RFID + TFT display code with card scanning, TFT status display (InsightsEdu branding with
+
+      #F58220 color), JSON POST to http://192.168.137.1:5000/scan-card
+  6. Auth
+    * auth.ts - Modified: Added isAdvisor helper export
+> read file H.txt and make what inside it
+
+
+Task: Hardware Pin Configuration Cross-Check and Alignment
+
+Context: The physical wiring of the hardware components (ESP32, RC522 RFID, TFT Display, and ESP32-CAM) on the user's board has NOT changed. We are only re-uploading the code. We must guarantee that the newly created `.ino` files match the exact pin definitions used in the original system to prevent communication failures or hardware mismatch.
+
+Instructions for Claude CLI:
+1. Audit the original project documentation, old code fragments, or database records regarding the exact hardware wiring (specifically looking at the SPI pins for the RC522 RFID, the TFT Display pins on the main ESP32, and the camera pins on the ESP32-CAM).
+2. Open the newly created `hardware/esp32_cam_mb.ino` and double-check that its camera pin definitions align perfectly with the standard AI-Thinker pinout used in the old code.
+3. Open `hardware/esp32_rfid_tft.ino` and verify that the GPIO pins assigned for the MFRC522 RFID reader (SS=5, RST=22, and SPI lines) and the TFT Display match the exact physical wiring from the old codebase.
+4. If you detect ANY discrepancy between the newly generated pin numbers and the old working configurations, immediately rewrite and correct the new `.ino` files to align 100% with the old physical connections.
+5. Do NOT change the updated backend URLs, WiFi structure, or branding text; ONLY fix the GPIO pin mappings if a mismatch is found.

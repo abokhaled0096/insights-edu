@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+
+<div class="card-box">
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+
+<h1 class="page-title m-0">
+Attendance Dashboard
+</h1>
+
+<button
+class="btn btn-success"
+data-bs-toggle="modal"
+data-bs-target="#sessionModal">
+Start Session
+</button>
+
+</div>
+
+{% if active_sessions %}
+<div class="card mb-4">
+<div class="card-header">
+<h5 class="mb-0">Active Sessions</h5>
+</div>
+<div class="card-body p-0">
+<table class="table table-hover mb-0">
+<thead>
+<tr>
+<th>Course</th>
+<th>Code</th>
+<th>Started</th>
+<th>Actions</th>
+</tr>
+</thead>
+<tbody>
+{% for session in active_sessions %}
+<tr>
+<td>{{ session.course_name }}</td>
+<td><span class="badge bg-secondary">{{ session.course_code }}</span></td>
+<td>{{ session.startedAt.strftime('%H:%M') if session.startedAt else '' }}</td>
+<td>
+<button
+class="btn btn-sm btn-primary me-1 btn-select-session"
+data-session-id="{{ session.id }}">
+Select for Device
+</button>
+<button
+class="btn btn-sm btn-danger btn-end-session"
+data-session-id="{{ session.id }}">
+End
+</button>
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
+{% else %}
+<div class="alert alert-info">
+No active sessions. Start one above.
+</div>
+{% endif %}
+
+{% if device_map %}
+<div class="card mb-4">
+<div class="card-header">
+<h5 class="mb-0">Device Mappings</h5>
+</div>
+<div class="card-body p-0">
+<table class="table table-sm mb-0">
+<thead>
+<tr>
+<th>Device IP</th>
+<th>Session ID</th>
+</tr>
+</thead>
+<tbody>
+{% for ip, sid in device_map.items() %}
+<tr>
+<td>{{ ip }}</td>
+<td><code>{{ sid[:8] }}...</code></td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
+{% endif %}
+
+<div class="table-responsive">
+{{ table|safe }}
+</div>
+
+</div>
+
+
+<!-- Start Session Modal -->
+<div class="modal fade" id="sessionModal">
+
+<div class="modal-dialog">
+<div class="modal-content">
+
+<form id="startSessionForm">
+
+<div class="modal-header">
+<h5 class="modal-title">Start Session</h5>
+</div>
+
+<div class="modal-body">
+
+<select class="form-select" id="courseId">
+
+<option value="">Choose Course</option>
+
+{% for course in courses %}
+<option value="{{ course.id }}">
+{{ course.name }}
+</option>
+{% endfor %}
+
+</select>
+
+</div>
+
+<div class="modal-footer">
+
+<button
+type="submit"
+class="btn btn-success">
+Start
+</button>
+
+</div>
+
+</form>
+
+</div>
+</div>
+</div>
+
+<!-- Select Device Modal -->
+<div class="modal fade" id="deviceModal">
+
+<div class="modal-dialog">
+<div class="modal-content">
+
+<form id="selectDeviceForm">
+
+<div class="modal-header">
+<h5 class="modal-title">Link Device to Session</h5>
+</div>
+
+<div class="modal-body">
+
+<input type="hidden" id="selectedSessionId" />
+
+<div class="mb-3">
+<label class="form-label">Device IP Address</label>
+<input
+type="text"
+class="form-control"
+id="deviceIp"
+placeholder="e.g. 10.123.127.185"
+required />
+<small class="text-muted">
+Enter the static IP of the RFID device (NodeMCU)
+</small>
+</div>
+
+</div>
+
+<div class="modal-footer">
+<button type="submit" class="btn btn-primary">
+Link Device
+</button>
+</div>
+
+</form>
+
+</div>
+</div>
+</div>
+
+{% endblock %}

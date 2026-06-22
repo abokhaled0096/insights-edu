@@ -1,0 +1,299 @@
+// ============================================================
+// InsightsEdu - ESP8266 (NodeMCU V3) + RFID (RC522) + I2C LCD 16x2
+// Scans RFID cards, displays status on LCD, and POSTs
+// student code to Flask server for attendance
+// ============================================================
+//
+// Physical Wiring:
+//   RFID RC522 : SS/SDA -> D8 (GPIO15) | RST -> D0 (GPIO16)
+//                SCK    -> D5 (GPIO14) | MISO -> D6 (GPIO12)
+//                MOSI   -> D7 (GPIO13)
+//   I2C LCD    : SDA    -> D2 (GPIO4)  | SCL  -> D1 (GPIO5)
+//   Buzzer     : +      -> D4 (GPIO2)  | -    -> GND  [Active HIGH]
+// ============================================================
+
+#include <SPI.h>
+#include <MFRC522.h>
+#include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+// ========================
+// WiFi Credentials
+// ========================
+const char* ssid      = "CS";
+const char* password  = "[REDACTED]";
+
+// ========================
+// Flask Server Endpoint
+// ========================
+const char* serverUrl = "http://10.123.127.144:5000/scan-card";
+
+// ========================
+// Static IP Configuration
+// ========================
+IPAddress staticIP(10, 123, 127, 185);  // Fixed IP for the RFID/LCD board
+IPAddress gateway(10, 123, 127, 208);   // Phone Gateway
+IPAddress subnet(255, 255, 255, 0);
+IPAddress dns(8, 8, 8, 8);
+
+// ========================
+// RFID Pins
+// SCK  -> D5 (GPIO14)
+// MISO -> D6 (GPIO12)
+// MOSI -> D7 (GPIO13)
+// ========================
+#define SS_PIN   15  // D8 / GPIO15
+#define RST_PIN  16  // D0 / GPIO16
+
+// ========================
+// Buzzer Pin - Active HIGH
+// + -> D4 (GPIO2) | - -> GND
+// HIGH = ON  (buzzer sounds)
+// LOW  = OFF (buzzer silent / idle)
+// NOTE: GPIO2 is a boot-strapping pin - it is HIGH during boot briefly.
+// We set OUTPUT + LOW immediately in setup() to silence it on boot.
+// ========================
+#define BUZZER_PIN 2  // D4 / GPIO2
+
+// ========================
+// I2C LCD 16x2
+// SDA -> D2 (GPIO4) | SCL -> D1 (GPIO5)
+// ========================
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+MFRC522 rfid(SS_PIN, RST_PIN);
+
+// ============================================================
+// Buzzer helpers - Active HIGH: HIGH = ON, LOW = OFF
+// Buzzer is always returned to LOW (silent) when idle.
+// ============================================================
+void beepSuccess() {
+  // 1 short beep = success
+  digitalWrite(BUZZER_PIN, HIGH);
+  delay(200);
+  digitalWrite(BUZZER_PIN, LOW);
+}
+
+void beepFail() {
+  // 2 short beeps = failure
+  digitalWrite(BUZZER_PIN, HIGH);
+  delay(150);
+  digitalWrite(BUZZER_PIN, LOW);
+  delay(100);
+  digitalWrite(BUZZER_PIN, HIGH);
+  delay(150);
+  digitalWrite(BUZZER_PIN, LOW);
+}
+
+void beepError() {
+  // 3 rapid beeps = hardware/system error
+  for (int i = 0; i < 3; i++) {
+    digitalWrite(BUZZER_PIN, HIGH);
+    delay(80);
+    digitalWrite(BUZZER_PIN, LOW);
+    delay(80);
+  }
+}
+
+// ============================================================
+// LCD helpers
+// ============================================================
+void lcdShowTitle() {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("  InsightsEdu   ");
+  lcd.setCursor(0, 1);
+  lcd.print(" Scan your card ");
+}
+
+void lcdShowStatus(const char* line1, const char* line2 = "") {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print(line1);
+  lcd.setCursor(0, 1);
+  lcd.print(line2);
+}
+
+// ============================================================
+// getCardUID() - Robust UID extraction
+// Uses snprintf with %02X to guarantee clean 2-digit uppercase
+// hex per byte - fixes the String(byte, HEX) corruption bug
+// that produced spurious characters like 'M' in the UID output.
+// ============================================================
+String getCardUID() {
+  char buf[3];
+  String cardID = "";
+  cardID.reserve(rfid.uid.size * 2);
+  for (byte i = 0; i < rfid.uid.size; i++) {
+    snprintf(buf, sizeof(buf), "%02X", rfid.uid.uidByte[i]);
+    cardID += buf;
+  }
+  return cardID;
+}
+
+// ============================================================
+// sendToServer()
+// ============================================================
+bool sendToServer(String studentCode) {
+  if (WiFi.status() != WL_CONNECTED) {
+    lcdShowStatus("No WiFi!", "Check network");
+    return false;
+  }
+  WiFiClient client;
+  HTTPClient http;
+  http.begin(client, serverUrl);
+  http.addHeader("Content-Type", "application/json");
+  String body = "{\"studentCode\":\"" + studentCode + "\"}";
+  Serial.print("POST: "); Serial.println(body);
+  int httpCode = http.POST(body);
+  String response = http.getString();
+  Serial.print("HTTP Code: "); Serial.println(httpCode);
+  Serial.print("Response: "); Serial.println(response);
+  http.end();
+  return (httpCode == 200);
+}
+
+// ============================================================
+// setup()
+// ============================================================
+void setup() {
+  // Silence Active HIGH buzzer IMMEDIATELY - LOW = OFF
+  // GPIO2 is briefly HIGH during boot; setting OUTPUT + LOW here
+  // as the very first action ensures the buzzer stays completely
+  // silent on boot and remains LOW (idle) until explicitly triggered.
+  pinMode(BUZZER_PIN, OUTPUT);
+  digitalWrite(BUZZER_PIN, LOW);
+
+  Serial.begin(115200);
+  Serial.println();
+  Serial.println("=== InsightsEdu RFID + LCD ===");
+
+  // I2C LCD Init
+  // MUST call Wire.begin(SDA, SCL) explicitly before lcd.init()
+  // to prevent ESP8266 from using default pins that conflict with SPI.
+  Wire.begin(4, 5);  // SDA = D2 (GPIO4), SCL = D1 (GPIO5)
+  lcd.init();
+  lcd.backlight();
+  lcdShowStatus("InsightsEdu", "Starting...");
+
+  // Robust RC522 init for GPIO16 (D0) as RST
+  // GPIO16 lacks internal pull-up - explicit LOW->HIGH pulse required.
+  pinMode(RST_PIN, OUTPUT);
+  digitalWrite(RST_PIN, LOW);
+  delay(10);
+  digitalWrite(RST_PIN, HIGH);
+  delay(50);
+
+  SPI.begin();
+  rfid.PCD_Init();
+  delay(50);
+
+  byte rfidVersion = rfid.PCD_ReadRegister(MFRC522::VersionReg);
+  Serial.print("RFID Firmware Version: 0x");
+  Serial.println(rfidVersion, HEX);
+
+  if (rfidVersion == 0x00 || rfidVersion == 0xFF) {
+    Serial.println("RFID not detected on first try, retrying...");
+    digitalWrite(RST_PIN, LOW);  delay(10);
+    digitalWrite(RST_PIN, HIGH); delay(100);
+    rfid.PCD_Init(); delay(50);
+    rfidVersion = rfid.PCD_ReadRegister(MFRC522::VersionReg);
+    Serial.print("RFID Firmware Version (retry): 0x");
+    Serial.println(rfidVersion, HEX);
+  }
+
+  if (rfidVersion == 0x00 || rfidVersion == 0xFF) {
+    Serial.println("ERROR: RFID not detected! Check wiring (SS=D8, RST=D0, SCK=D5, MISO=D6, MOSI=D7).");
+    lcdShowStatus("RFID Error!", "Check wiring");
+    beepError();
+    delay(3000);
+  } else {
+    Serial.println("RFID reader initialized OK");
+  }
+
+  WiFi.config(staticIP, gateway, subnet, dns);
+  WiFi.begin(ssid, password);
+  lcdShowStatus("Connecting", "WiFi...");
+  Serial.print("Connecting to WiFi");
+
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED && attempts < 30) {
+    delay(500); Serial.print("."); attempts++;
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println();
+    Serial.print("IP: "); Serial.println(WiFi.localIP());
+    lcdShowStatus("WiFi OK!", WiFi.localIP().toString().c_str());
+    delay(1500);
+  } else {
+    Serial.println();
+    Serial.println("WiFi failed!");
+    lcdShowStatus("WiFi Error!", "Retrying...");
+  }
+
+  lcdShowTitle();
+}
+
+// ============================================================
+// loop()
+// ============================================================
+void loop() {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("WiFi lost. Reconnecting...");
+    lcdShowStatus("WiFi lost...", "Reconnecting");
+    WiFi.disconnect();
+    WiFi.config(staticIP, gateway, subnet, dns);
+    WiFi.begin(ssid, password);
+    unsigned long startAttempt = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - startAttempt < 10000) {
+      delay(500); Serial.print(".");
+    }
+    if (WiFi.status() == WL_CONNECTED) {
+      Serial.println();
+      Serial.print("Reconnected! IP: "); Serial.println(WiFi.localIP());
+      lcdShowStatus("WiFi OK!", WiFi.localIP().toString().c_str());
+      delay(1500);
+      lcdShowTitle();
+    } else {
+      Serial.println();
+      lcdShowStatus("WiFi Error!", "Will retry...");
+    }
+    return;
+  }
+
+  if (!rfid.PICC_IsNewCardPresent()) { delay(100); return; }
+  if (!rfid.PICC_ReadCardSerial())   { delay(100); return; }
+
+  // Raw byte debug - isolates chip read vs String parsing issues
+  Serial.print("Raw Bytes: ");
+  for (byte i = 0; i < rfid.uid.size; i++) {
+    Serial.print(rfid.uid.uidByte[i], HEX);
+    Serial.print(" ");
+  }
+  Serial.println();
+
+  String cardUID = getCardUID();
+  Serial.print("Card UID: "); Serial.println(cardUID);
+  lcdShowStatus("Scanning...", cardUID.c_str());
+
+  bool success = sendToServer(cardUID);
+
+  if (success) {
+    lcdShowStatus("Access OK!", ":)");
+    beepSuccess();
+  } else {
+    lcdShowStatus("Access Denied", ":(");
+    beepFail();
+  }
+
+  // Ensure buzzer is LOW (silent/idle) after any beep sequence
+  digitalWrite(BUZZER_PIN, LOW);
+
+  rfid.PICC_HaltA();
+  rfid.PCD_StopCrypto1();
+  delay(3000);
+  lcdShowTitle();
+}

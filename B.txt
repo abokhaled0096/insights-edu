@@ -1,0 +1,36 @@
+Act as a Principal Full-Stack Software Architect, Next.js 16/React 19 Core Maintainer, and Principal Systems Auditor. I need you to execute a comprehensive, zero-tolerance upgrade on our university management platform "InsightsEdu". 
+
+Your execution methodology MUST strictly utilize two engineering principles:
+1. A Microscopic "Gap Analysis" (Comparing our ideal academic role structure against what is physically coded under the directory tree).
+2. A Rigid "Schema & Skeleton Audit" (Verifying the absolute integrity of the E2E data pipeline from the physical RFID hardware/Flask IoT bridge up to the PostgreSQL database and live dashboards, eliminating all 404 and 500 server crashes).
+
+Do not rewrite working core application logic from scratch. Instead, audit, patch, and refactor the repository based on these exact specifications:
+
+### 1. Fix the Infinite Redirect Loop & Route Sync (Zero-Tolerance 404/Flash Bugs)
+- The user is experiencing a recurring, flashing redirect bug ("Redirecting to login / force password change"). This loop must be permanently broken. Audit the Next.js Middleware and global `app/(dashboard)/layout.tsx`. Ensure that when checking for session tokens or `requirePasswordChange`, you explicitly EXCLUDE target routes like `/force-password-change`, `/login`, and `/api/auth` using clean conditional guarding (e.g., `if (pathname === '/force-password-change') return;`). It must execute smoothly exactly ONCE.
+- Scan the central sidebar/navigation links and match them precisely with the file system under `app/(dashboard)/student/`. Ensure the routes for "كورساتي" (My Courses), "الحضور" (Attendance), and "النتايج" (Results) are completely operational by generating/fixing any missing or misnamed `page.tsx` files.
+
+### 2. Single Source of Truth (SSOT) Database Unification
+- Eliminate all data silos, isolated CSV/JSON files, or mock local databases within the `ai-app/` (Flask) directory. 
+- Ensure that the Python Flask AI app reads and writes from the exact same central PostgreSQL database used by Prisma in the Next.js application (sharing the same connection metrics), OR routes all incoming IoT hardware payloads strictly through Next.js central API endpoints (`/api/attendance/scan`).
+- Any update (like an Admin linking a student's RFID Card UID `studentCode` via the Web portal) must instantly propagate and be available to the Flask IoT/Face Validation endpoint in real-time.
+
+### 3. Comprehensive Academic Role Provisioning (RBAC Framework)
+- Public registration must be completely blocked: `/register` should reject requests, return a 403 error ("التسجيل العام مغلق"), and redirect to `/login` after 5 seconds.
+- Update Admin User Creation Form (`/admin/users/new`): Allow the Admin to provision accounts with fields for Full Name, Academic Email, Initial Password, and a Role dropdown supporting: ADMIN, TEACHER, TA, STUDENT, ADVISOR.
+- Enforce the `requirePasswordChange` boolean field (default: true) in the User model. If true, the user must be force-redirected to a password-reset layout upon their first login, blocking dashboard access until an 8+ character strong password (uppercase, lowercase, digit) is established.
+- Refactor the Course Model so Admin can link a Course to one Primary Teacher and one or more TAs (Teaching Assistants).
+- Separate Permissions:
+  * Teachers: Full course access (view rosters, manually drop/enroll students, build exams, view AI risk notifications, start sessions).
+  * TAs (Teaching Assistants): Restricted access. TAs can view rosters, mark manual attendance overrides, and grade assignments, but CANNOT create exams, add/remove students from the course, or mutate course properties.
+  * IoT Attendance Session Expiration: When a Teacher clicks "بدء جلسة الحضور", create a DB record with a strict **15-minute expiration timeout** (`expiresAt`). The `/api/attendance/scan` endpoint must automatically reject any late card scans after this window expires.
+  * Advisor Dashboard: Ensure Advisors can view centralized academic health metrics and AI-driven risk evaluation layers (LOW/MEDIUM/HIGH) for their assigned students.
+
+### 4. Server Boundary Data Serialization (Eliminate 500 Crashes)
+- Audit all Server Components fetching relational data via Prisma. Ensure that any raw `Date` objects, BigInts, or nested relational boundaries are cleanly serialized (e.g., calling `.toISOString()`) before passing them as props to Client Components ("use client") to completely eliminate hydration rendering errors.
+- Protect the UI using optional chaining (`?.`) or short-circuit evaluations on fields that could return `null` in the database (like a missing RFID code or a blank assignment description) so the app never throws an undefined reference crash.
+
+### 5. Production Compilation & Automated Verification
+- Run static code verification via `npx tsc --noEmit` and run a full compilation check via `npm run build` to verify all 57+ routes compile flawlessly.
+- Run the full E2E automated test suite (`npx tsx scripts/integration-test.ts`) ensuring all 48+ test assertions pass successfully.
+- Output a detailed "Post-Audit System Immunity Report" detailing all micro-bugs resolved and explicitly confirming that the system architecture is 100% unified, secure, and ready for deployment.

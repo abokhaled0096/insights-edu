@@ -1,0 +1,582 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {\r\n  STUDENT\r\n  ADMIN\r\n  TEACHER\r\n  ADVISOR\r\n}\r\n\r\nenum MeetingStatus {\r\n  SCHEDULED\r\n  COMPLETED\r\n  CANCELLED\r\n}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  REJECTED
+}
+
+enum AssignmentStatus {
+  PENDING
+  SUBMITTED
+  LATE
+  GRADED
+}
+
+enum QuestionType {
+  MCQ
+  TRUE_FALSE
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+model User {
+  id            String          @id @default(cuid())
+  name          String?
+  email         String          @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  password      String
+  role          Role            @default(STUDENT)
+  studentCode   String?         @unique
+  studentExamPapers StudentExamPaper[]
+  enrollments   Enrollment[]
+  teachings     TeacherCourse[]
+  teacherAssignment   Assignment[]
+  attendances   Attendance[]
+  examResults   ExamResult[]
+  submissions   AssignmentSubmission[]
+  insights      StudentInsight[]
+  Authenticator Authenticator[]
+  adminLogs     AdminLog[]
+  activitySubmissions ActivitySubmission[]
+  sentNotifications     SystemNotification[] @relation("SentNotifications")
+  receivedNotifications SystemNotification[] @relation("ReceivedNotifications")
+  advisorRecommendationsMade AdvisorRecommendation[] @relation("AdvisorRecommendations")
+  advisorRecommendationsReceived AdvisorRecommendation[] @relation("StudentRecommendations")
+  advisorMeetingsAsAdvisor AdvisorMeeting[] @relation("AdvisorMeetings")
+  advisorMeetingsAsStudent AdvisorMeeting[] @relation("StudentMeetings")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+ 
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+ 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+ 
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+ 
+  @@id([provider, providerAccountId])
+}
+ 
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+ 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+ 
+model VerificationToken {
+  id      String   @id @default(cuid())
+  email      String
+  token      String
+  expires    DateTime
+  
+}
+
+ 
+// Optional for WebAuthn support
+model Authenticator {
+  credentialID         String  @unique
+  userId               String
+  providerAccountId    String
+  credentialPublicKey  String
+  counter              Int
+  credentialDeviceType String
+  credentialBackedUp   Boolean
+  transports           String?
+ 
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+ 
+  @@id([userId, credentialID])
+}
+
+
+model Course {
+  id           String       @id @default(cuid())
+  name         String
+  code         String       @unique
+  description  String?
+
+  students     Enrollment[]
+  teachers     TeacherCourse[]
+
+  exams        Exam[]
+  assignments  Assignment[]
+  studentActivities      StudentActivity[]
+  attendances  Attendance[]
+  attendanceSessions AttendanceSession[]
+
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model Enrollment {
+  id         String   @id @default(cuid())
+  studentId  String
+  courseId   String
+
+  student    User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, courseId])
+}
+
+model TeacherCourse {
+  id         String   @id @default(cuid())
+  teacherId  String
+  courseId   String
+
+  teacher    User     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, courseId])
+}
+
+model Attendance {
+  id           String            @id @default(cuid())
+  studentId    String
+  courseId     String
+  sessionId    String?
+  cardId       String?
+  faceMatched  Boolean           @default(false)
+  status       AttendanceStatus  @default(PRESENT)
+  date         DateTime          @default(now())
+
+  student      User              @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course       Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+    session      AttendanceSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([studentId])
+  @@index([courseId])
+}
+
+model Exam {
+  id          String      @id @default(cuid())
+  title       String
+  courseId    String
+
+  course      Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  questions   Question[]
+  results     ExamResult[]
+  config      OCRConfig?
+  papers      StudentExamPaper[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Question {
+  id        String           @id @default(cuid())
+  examId    String
+  text      String
+  type      QuestionType     @default(MCQ)
+  bubbleCount Int              @default(4)
+  x         Int?
+  y         Int?
+  width     Int?
+  height    Int?
+  correctAnswer String       
+  marks     Int              @default(1)
+  order     Int
+  studentAnswers StudentAnswer[]
+  exam      Exam             @relation(fields: [examId], references: [id], onDelete: Cascade)
+  options   QuestionOption[]
+
+  @@index([examId])
+}
+
+model QuestionOption {
+  id          String    @id @default(cuid())
+  questionId  String
+  label       String
+  text        String
+  sortOrder   Int
+
+  question    Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, label])
+}
+
+model ExamResult {
+  id        String   @id @default(cuid())
+  examId    String
+  studentId String
+  score     Float
+  // إضافة حقل لتخزين رابط صورة الورقة المصححة للرجوع إليها عند التظلم
+  scannedPaperUrl String? 
+  // تخزين الإجابات التي استخرجها الـ OCR للمراجعة البشرية إذا لزم الأمر
+  rawOcrData     Json?   
+
+  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student   User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([examId, studentId])
+}
+
+model Assignment {
+  id           String   @id @default(cuid())
+  teacherId    String
+  courseId     String
+  title        String
+  description  String?
+  dueDate      DateTime
+  course       Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  teacher      User    @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  submissions  AssignmentSubmission[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model AssignmentSubmission {
+  id            String            @id @default(cuid())
+  assignmentId  String
+  studentId     String
+  fileUrl       String?
+  grade         Float?
+  status        AssignmentStatus  @default(PENDING)
+  submittedAt   DateTime?
+
+  assignment    Assignment        @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student       User              @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([assignmentId, studentId])
+}
+
+model StudentActivity {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  type        ActivityType
+  dueDate     DateTime?
+  points      Int      @default(0)
+
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  contents    ActivityContent[]
+    attachments ActivityAttachment[]
+  submissions ActivitySubmission[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([courseId])
+}
+
+enum ActivityType {
+  TASK
+  QUIZ
+  PROJECT
+  EXAM
+  EVENT
+}
+
+enum ContentType {
+  TEXT
+  FILE
+  LINK
+  VIDEO
+  IMAGE
+  CODE
+  QUESTION
+}
+
+model ActivityContent {
+  id          String   @id @default(cuid())
+
+  activityId  String
+  activity    StudentActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  type        ContentType
+  title       String?
+  body        String?
+
+  sortOrder   Int      @default(0)
+
+  createdAt   DateTime @default(now())
+}
+
+model ActivityAttachment {
+  id          String   @id @default(cuid())
+
+  activityId  String
+  activity    StudentActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  fileName    String
+  fileUrl     String
+  fileSize    Int?
+  mimeType    String?
+
+  createdAt   DateTime @default(now())
+}
+
+model ActivitySubmission {
+  id          String   @id @default(cuid())
+
+  activityId  String
+  studentId   String
+
+  activity    StudentActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  student     User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  textAnswer  String?
+  fileUrl     String?
+
+  score       Float?
+  feedback    String?
+
+  status      SubmissionStatus @default(PENDING)
+
+  submittedAt DateTime?
+  gradedAt    DateTime?
+
+  @@unique([activityId, studentId])
+}
+
+enum SubmissionStatus {
+  PENDING
+  SUBMITTED
+  LATE
+  GRADED
+}
+
+model StudentInsight {
+  id                 String    @id @default(cuid())
+
+  studentId          String
+  student            User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  riskLevel          RiskLevel
+  confidence         Float?
+
+  summary            String
+  predictedOutcome   String?
+  recommendations    Json?
+  reasons            Json?
+
+  attendanceRate     Float?
+  averageScore       Float?
+  assignmentRate     Float?
+  engagementScore    Float?
+
+  inputSnapshot      Json?
+  modelName          String?
+  modelVersion       String?
+
+  generatedAt        DateTime  @default(now())
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([studentId])
+  @@index([riskLevel])
+  @@index([generatedAt])
+}
+
+model AdminLog {
+  id          String   @id @default(cuid())
+
+  adminId     String
+  admin       User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  action      String
+  entityType  String?
+  entityId    String?
+
+  description String?
+
+  oldData     Json?
+  newData     Json?
+
+  ipAddress   String?
+  userAgent   String?
+
+  createdAt   DateTime @default(now())
+
+  @@index([adminId])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model AttendanceSession {
+  id          String   @id @default(cuid())
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  active      Boolean  @default(true)
+
+  startedAt   DateTime @default(now())
+  endedAt     DateTime?
+
+  attendances Attendance[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([courseId])
+}
+
+enum PaperStatus {
+  GENERATED
+  PRINTED
+  SUBMITTED
+  SCANNED
+  PROCESSED
+  REVIEW_REQUIRED
+  GRADED
+}
+
+enum OCRStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+}
+
+model StudentExamPaper {
+  id            String   @id @default(cuid())
+
+  examId         String
+  studentId      String
+
+  uniqueCode     String   @unique
+  qrCodeUrl      String?
+
+  status         PaperStatus @default(GENERATED)
+
+  scannedImage   String?
+  processedImage String?
+
+  ocrStatus      OCRStatus @default(PENDING)
+
+  totalScore     Float?
+
+  exam           Exam @relation(fields:[examId], references:[id], onDelete:Cascade)
+  student        User @relation(fields:[studentId], references:[id], onDelete:Cascade)
+
+  answers        StudentAnswer[]
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([examId, studentId])
+}
+
+model StudentAnswer {
+  id            String @id @default(cuid())
+
+  paperId       String
+  questionId    String
+
+  detectedAnswer String?
+  isCorrect      Boolean?
+  score          Float @default(0)
+
+  confidence     Float?
+
+  needsReview    Boolean @default(false)
+
+  paper          StudentExamPaper @relation(fields:[paperId], references:[id], onDelete:Cascade)
+  question       Question @relation(fields:[questionId], references:[id], onDelete:Cascade)
+
+  @@unique([paperId, questionId])
+}
+
+model OCRConfig {
+  id            String @id @default(cuid())
+
+  examId         String @unique
+
+  threshold      Int @default(140)
+  blur           Int @default(3)
+  invert         Boolean @default(true)
+
+  exam           Exam @relation(fields:[examId], references:[id], onDelete:Cascade)
+}
+
+model AdvisorRecommendation {
+  id          String   @id @default(cuid())
+  advisorId   String
+  studentId   String
+  text        String
+  isWarning   Boolean  @default(false)
+
+  advisor     User     @relation("AdvisorRecommendations", fields: [advisorId], references: [id], onDelete: Cascade)
+  student     User     @relation("StudentRecommendations", fields: [studentId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+
+  @@index([advisorId])
+  @@index([studentId])
+}
+
+model SystemNotification {
+  id          String   @id @default(cuid())
+  senderId    String
+  receiverId  String
+  message     String
+  isRead      Boolean  @default(false)
+
+  sender      User     @relation("SentNotifications", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver    User     @relation("ReceivedNotifications", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+
+  @@index([receiverId])
+  @@index([senderId])
+}
+
+model AdvisorMeeting {
+  id          String        @id @default(cuid())
+  advisorId   String
+  studentId   String
+  meetingDate DateTime
+  notes       String?
+  status      MeetingStatus @default(SCHEDULED)
+
+  advisor     User          @relation("AdvisorMeetings", fields: [advisorId], references: [id], onDelete: Cascade)
+  student     User          @relation("StudentMeetings", fields: [studentId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime      @default(now())
+
+  @@index([advisorId])
+  @@index([studentId])
+}

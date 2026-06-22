@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Register{% endblock %}
+
+{% block content %}
+
+<div class="card-box small-card">
+
+<h1 class="page-title">Register Student</h1>
+
+<form method="POST" action="/register_user">
+
+<div class="mb-3">
+<label>Select Student</label>
+
+<select class="form-select" name="student_id" required>
+
+<option value="">Choose...</option>
+
+{% for student in students %}
+<option value="{{ student.id }}">
+{{ student.name }}
+</option>
+{% endfor %}
+
+</select>
+</div>
+
+<div class="mb-3">
+<label>RFID Card Code</label>
+
+<input
+type="text"
+name="rfid_code"
+class="form-control"
+required>
+</div>
+
+<button class="btn btn-success w-100">
+Start Registration
+</button>
+
+</form>
+
+</div>
+
+{% endblock %}

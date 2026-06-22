@@ -1,0 +1,27 @@
+Activate Deep Repository Scan and Audit Mode. 
+
+Task: Perform a comprehensive, file-by-file structural and code extraction of the attached codebase. Your goal is to map out the exact implementation details so we can integrate a new full-scale LMS platform.
+
+Strict Constraints: Do NOT modify any file. Do NOT write any new application features yet. Only read, analyze, and dump the exact code structures.
+
+Please extract and print the full code content or highly detailed structural mappings for the following critical files:
+
+1. Database Layer (Prisma ORM):
+- Locate and print the entire contents of `schema.prisma` (usually found under `prisma/schema.prisma`). I need to see every enum, model, relation, and field type currently defined.
+
+2. Embedded IoT Hardware Files:
+- Locate all Arduino `.ino` files or C/C++ header files related to the ESP32 and ESP32-CAM.
+- Print the complete setup, loop, WiFi connection blocks, and target HTTP URLs/SSIDs from these hardware files.
+
+3. Next.js Routing & API Layer:
+- Scan the `app/api/` directory (specifically look into `app/api/attendance/scan/route.ts` and any other attendance/registration endpoints).
+- Extract the exact request/response handling blocks and the fetch/axios proxies calling the Python AI server.
+
+4. Python AI Server Architecture:
+- Print the core routing logic from `ai-app/app.py` (Flask endpoints) and the configuration variables/image capture endpoints from `ai-app/model.py`.
+
+5. Project Environment & Dependency Configs:
+- Extract the defined packages and versions from `package.json` and `requirements.txt`.
+- Extract the environment keys (without secrets) from `.env`.
+
+Output Format: Present the extracted code snippets, configurations, and structures clearly, grouped by the 5 sections above, specifying the exact relative paths and file names for every single detail.

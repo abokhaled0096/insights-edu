@@ -1,0 +1,57 @@
+body{
+background:#f5f7fb;
+font-family:Arial;
+margin:0;
+}
+
+.wrapper{
+display:flex;
+min-height:100vh;
+}
+
+.sidebar{
+width:240px;
+background:#111827;
+color:white;
+padding:30px 20px;
+display:flex;
+flex-direction:column;
+gap:15px;
+}
+
+.sidebar a{
+color:white;
+text-decoration:none;
+padding:10px;
+border-radius:8px;
+display:block;
+}
+
+.sidebar a:hover{
+background:#1f2937;
+}
+
+.logo{
+margin-bottom:30px;
+}
+
+.content{
+flex:1;
+padding:40px;
+}
+
+.card-box{
+background:white;
+padding:30px;
+border-radius:16px;
+box-shadow:0 10px 25px rgba(0,0,0,.05);
+}
+
+.small-card{
+max-width:500px;
+margin:auto;
+}
+
+.page-title{
+font-weight:700;
+}

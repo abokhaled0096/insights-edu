@@ -1,0 +1,18 @@
+Refactor the entire `hardware/esp32_rfid_tft/esp32_rfid_tft.ino` file to make it fully compatible with the ESP8266 (NodeMCU V3 / ESP-12E) platform instead of ESP32.
+
+Please apply the following structural and network changes:
+1. Replace `#include <WiFi.h>` with `#include <ESP8266WiFi.h>`.
+2. If the code uses `<WebServer.h>`, replace it with `<ESP8266WebServer.h>` and change the object instantiation to `ESP8266WebServer server(80);`.
+3. Retain the exact WiFi credentials: ssid = "CS" and password = "123456789".
+4. Retain the Static IP configuration but adapt it to the ESP8266 core syntax:
+   - IP: 10.123.127.185
+   - Gateway: 10.123.127.208
+   - Subnet: 255.255.255.0
+   - DNS: 8.8.8.8
+   Note: In ESP8266, WiFi.config takes arguments as WiFi.config(local_ip, gateway, subnet, dns1). Ensure this order is correct.
+5. Review the SPI Pin definitions for MFRC522 and TFT_eSPI. Ensure they map to the standard ESP8266 hardware SPI pins:
+   - SCK -> D5 (GPIO14)
+   - MISO -> D6 (GPIO12)
+   - MOSI -> D7 (GPIO13)
+   Make sure the SS/SDA pin for RFID is mapped to a safe GPIO (like D8 / GPIO15) and RST is mapped properly.
+6. Clean up any ESP32-specific architecture configurations that might cause compilation errors on the ESP8266 core.

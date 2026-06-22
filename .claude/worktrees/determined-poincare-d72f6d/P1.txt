@@ -1,0 +1,33 @@
+You are an expert Full-Stack Engineer and IoT Systems Integrator. We are building the remaining modules for "InsightsEdu" (Next.js 16, Tailwind CSS 4, Ant Design 6, Prisma 7, PostgreSQL).
+
+Execute the following modifications and file creation steps directly in the repository:
+
+1. DATABASE LAYER (Prisma Schema & Seed):
+- Open `prisma/schema.prisma`. 
+- Update the `Role` enum to include `ADVISOR`.
+- Add the following models with proper relations:
+  * `AdvisorRecommendation` (id, advisorId, studentId, text, isWarning, createdAt)
+  * `SystemNotification` (id, senderId, receiverId, message, isRead, createdAt)
+  * `AdvisorMeeting` (id, advisorId, studentId, meetingDate, status, createdAt)
+- Update or create `prisma/seed.ts` to automatically seed the 3 courses:
+  1. Code: 'CS-EXPERT', Name: 'نظم خبيره'
+  2. Code: 'AI-EDU', Name: 'تطبيقات الذكاء الاصطناعي في التعليم'
+  3. Code: 'NET-SEC', Name: 'أمن الشبكات'
+
+2. FRONTEND DASHBOARDS (Arabic RTL, Ant Design 6, Tailwind 4):
+- Brand Colors to use: Primary Orange (`#F58220`) and Secondary Dark Blue (`#002060`).
+- Create or fully implement the 4 required Arabic RTL dashboard views:
+  * Student Dashboard (`app/(dashboard)/student/page.tsx`): Display course content, assignment upload zone, grades for seeded courses, academic warnings, attendance counters/timestamps, and Advisor recommendations.
+  * Teacher Dashboard (`app/(dashboard)/teacher/page.tsx`): Student detail lists (grades, attendance), simple Antd charts for performance analysis, a basic database viewer of enrolled students, and a simplified layout to input grades.
+  * Admin Dashboard (`app/(dashboard)/admin/page.tsx`): User registration logs, action button for RFID card generation mapping, 4-level grade/student data tables, and an executive high-level summary cards (mocked as automatic school reports).
+  * Academic Advisor Dashboard (`app/(dashboard)/advisor/page.tsx`): Create this new dashboard from scratch. Display assigned student list with their grades/attendance, text area to save custom recommendations/warnings, and a simple interface to schedule student individual meetings.
+
+3. MESSAGING & NOTIFICATIONS (Database-backed):
+- Create a simplified database notification handler. Instead of web-sockets, implement a basic API route where teachers/advisors can save notifications to the `SystemNotification` table, and students can fetch/see them upon logging in.
+
+4. EMBEDDED HARDWARE CODEFILES:
+- Inside a new folder `hardware/`, create two files:
+  * `esp32_cam_mb.ino`: Write the updated full C++ code for ESP32-CAM using the AI-Thinker pinout, configured to host a local port 80 webserver with a `/capture` endpoint returning VGA JPEG frames. Add placeholders for local WiFi Hotspot credentials.
+  * `esp32_rfid_tft.ino`: Write the full C++ code initializing MFRC522 RFID reader (SS=5, RST=22) and TFT display via `TFT_eSPI.h`. Loop should scan RFID UID, display status on TFT, and POST JSON `{"studentCode": "..."}` to the local Flask server endpoint (`http://192.168.137.1:5000/scan-card`).
+
+Review all relations in `schema.prisma` before saving to prevent relation shadowing or Prisma build errors. Output the exact files to their designated paths.

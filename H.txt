@@ -1,0 +1,31 @@
+Task: Apply Live Network Subnet Configuration (10.123.127.X) across Hardware and AI Server
+
+Context: Based on the live `ipconfig` output from the user's laptop, the mobile hotspot network uses the `10.123.127.X` subnet with a Subnet Mask of `255.255.255.0`. The host laptop is at `10.123.127.144` and the gateway (phone) is at `10.123.127.208`. We must rewrite the network configuration blocks to match these exact parameters.
+
+Target Files to Modify:
+1. `hardware/esp32_cam_mb.ino`
+2. `hardware/esp32_rfid_tft.ino`
+3. `ai-app/model.py`
+
+Instructions for Claude CLI:
+1. Modify `hardware/esp32_cam_mb.ino`:
+   - Update the Static IP block with these exact values:
+     * IPAddress local_IP(10, 123, 127, 184); // Fixed IP for the Camera
+     * IPAddress gateway(10, 123, 127, 208); // Phone Gateway
+     * IPAddress subnet(255, 255, 255, 0);
+   - Ensure the WiFi credentials remain SSID: "CS" and Password: "123456789".
+
+2. Modify `hardware/esp32_rfid_tft.ino`:
+   - Update the Static IP block for the main ESP32 so it doesn't collide:
+     * IPAddress local_IP(10, 123, 127, 185); // Fixed IP for the RFID/TFT board
+     * IPAddress gateway(10, 123, 127, 208);
+     * IPAddress subnet(255, 255, 255, 0);
+   - Locate the `serverUrl` variable and update it to point directly to the Flask server running on the user's laptop:
+     * `const char* serverUrl = "http://10.123.127.144:5000/scan-card";`
+
+3. Modify `ai-app/model.py`:
+   - Locate the camera stream URL variable (e.g., `ESP32_CAM_URL`).
+   - Update it to fetch the live frame from the camera's new static IP and correct endpoint:
+     * Change it to: `http://10.123.127.184/capture`
+
+4. Verification: Double-check that all IP formats use commas in Arduino configurations `(10, 123, 127, ...)` and strings in Python. Keep all pin assignments, routing logic, and dependencies untouched.

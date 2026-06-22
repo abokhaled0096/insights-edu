@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+
+<div class="card-box">
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+
+<h1 class="page-title m-0">
+Attendance Dashboard
+</h1>
+
+<button
+class="btn btn-success"
+data-bs-toggle="modal"
+data-bs-target="#sessionModal">
+Start Session
+</button>
+
+</div>
+
+{% if active_session %}
+<div class="alert alert-success">
+Current Session:
+{{ active_session.course_name }}
+</div>
+{% endif %}
+
+<div class="table-responsive">
+{{ table|safe }}
+</div>
+
+</div>
+
+
+<!-- Modal -->
+<div class="modal fade" id="sessionModal">
+
+<div class="modal-dialog">
+<div class="modal-content">
+
+<form id="startSessionForm">
+
+<div class="modal-header">
+<h5 class="modal-title">Start Session</h5>
+</div>
+
+<div class="modal-body">
+
+<select class="form-select" id="courseId">
+
+<option value="">Choose Course</option>
+
+{% for course in courses %}
+<option value="{{ course.id }}">
+{{ course.name }}
+</option>
+{% endfor %}
+
+</select>
+
+</div>
+
+<div class="modal-footer">
+
+<button
+type="submit"
+class="btn btn-success">
+Start
+</button>
+
+</div>
+
+</form>
+
+</div>
+</div>
+</div>
+
+{% endblock %}
